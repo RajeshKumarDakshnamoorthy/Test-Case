@@ -1,0 +1,95 @@
+/*
+To create  set of Task when an User Select Project Type.
+To create Project Plan When an Project is Created.
+*/
+
+public class NaoProjectAfterInsert {
+ 
+    public static void onAfterInsert(List<NAO_Project__c> records){
+        
+        List<PP_Tasks__mdt> metadataList = [SELECT Task_Subject__c,Project_Type__c,Initial_Owner__c 
+                                            FROM PP_Tasks__mdt WHERE Project_Type__c!=NULL];
+        
+        Id UserId;
+        
+        //Task w.r.t Project_Type__c Selected.
+        List<Task> TasksToInsert = new List<Task>();
+        
+        // NAO_Project_Plan__c created w.r.t NAO_Project__c. 
+        List<NAO_Project_Plan__c> ProjectPlanTOInsert = new List<NAO_Project_Plan__c>();
+        
+        for(NAO_Project__c newRecords : records){
+            
+            String beforeTrim = newRecords.Project_Type__c;
+            
+            String afterTrim = beforeTrim.substringBefore('-').trim();
+            
+            System.debug(afterTrim);
+            
+            for(Integer i = 0; i < metadataList.Size(); i++){
+                
+                if(metadataList[i].Project_Type__c.equalsIgnoreCase(afterTrim)){
+                    
+                    String Owner = metadataList[i].Initial_Owner__c;
+                    
+                    System.debug('Owner ::'+Owner);
+                    
+                    if(Owner == 'PM'){
+                        userId = newRecords.PM__c;
+                        
+                    }else if(Owner == 'PA'){
+                        userId = newRecords.PA__c;
+                        
+                    }else if(Owner == 'CS'){
+                        userId = newRecords.CS__c;
+                        
+                    }else if(Owner == 'PS'){
+                        userId = newRecords.PS__c;
+                        
+                    }
+                    
+                    //creating new task for each metadata w.r.t Project_Type__c
+                    
+                    Task newTasks = new Task(Subject = metadataList[i].Task_Subject__c, OwnerId = userId, 
+                                             WhatId = newRecords.Id);
+                     
+                    TasksToInsert.add(newTasks);
+
+                    System.debug('TasksToInsert ::'+TasksToInsert);
+                    
+                    //Creating NAO_Project_Plan__c for NAO_Project__c
+                    NAO_Project_Plan__c relatedRecord = new NAO_Project_Plan__c(NAO_Project__c = newRecords.Id, 
+                                                                                Task_Subject__c = newTasks.Subject, 
+                                                                                OwnerId = userId);
+                    
+                    ProjectPlanTOInsert.add(relatedRecord);
+
+                    System.debug('ProjectPlanTOInsert ::'+ProjectPlanTOInsert);
+                    
+                }
+            }
+            
+        }
+        try{
+            if(TasksToInsert.Size() > 0){
+                
+                insert Tasks;
+                
+            }
+            if(ProjectPlanTOInsert.Size() > 0){
+                
+                insert ProjectPlan;
+                
+            }
+            System.debug('TOTal # Task inserted ::'+TasksToInsert.Size());
+            System.debug('TOTal # Project Plan inserted ::'+ProjectPlanTOInsert.Size());
+        }Catch(Exception e){
+            
+            System.debug('Exception::'+e.getMessage());
+            
+        }finally{
+            
+            System.debug('Trigger Executed Successfully');  
+        }
+    }
+}
